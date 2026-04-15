@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<meta name="theme-color" content="#0a0a14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ミュージックライブラリ v2.0</title>
+<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIuODn+ODpeODvOOCuOODg+OCr+ODqeOCpOODluODqeODqiIsCiAgInNob3J0X25hbWUiOiAi44Of44Ol44O844K444OD44KvIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYTBhMTQiLAogICJ0aGVtZV9jb2xvciI6ICIjNmM1Y2U3Igp9">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#0a0a14;--bg2:rgba(18,18,38,0.7);--bg3:rgba(30,30,60,0.6);--bg4:rgba(40,40,80,0.5);
+--glass:rgba(18,18,38,0.55);--glass-border:rgba(108,92,231,0.12);
+--accent:#6c5ce7;--accent2:#a29bfe;--accent3:#4834d4;--accent-glow:rgba(108,92,231,0.25);
+--text:#eeeef6;--text2:#9898b8;--text3:#606080;
+--danger:#ff6b6b;--success:#51cf66;--warning:#ffd43b;
+--radius:16px;--shadow:0 8px 32px rgba(0,0,0,0.35);
+--blur:blur(20px);
+}
+html,body{height:100%;font-family:-apple-system,'Segoe UI','Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;-webkit-tap-highlight-color:transparent}
+body{display:flex;flex-direction:column;background:var(--bg);background-image:
+  radial-gradient(ellipse at 20% 0%,rgba(108,92,231,0.10) 0%,transparent 60%),
+  radial-gradient(ellipse at 80% 100%,rgba(72,52,212,0.08) 0%,transparent 50%)}
+
+/* Waveform background animation */
+.waveform-bg{position:fixed;bottom:0;left:0;width:100%;height:100px;pointer-events:none;z-index:0;opacity:0.06}
+.waveform-bg .bar{position:absolute;bottom:0;width:3px;background:var(--accent);border-radius:2px 2px 0 0;animation:wavePulse var(--dur) ease-in-out infinite alternate}
+@keyframes wavePulse{0%{height:var(--h1)}100%{height:var(--h2)}}
+
+/* Header */
+.header{position:relative;z-index:10;padding:14px 16px 10px;background:linear-gradient(180deg,rgba(10,10,20,0.95) 0%,transparent 100%);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.header h1{font-size:18px;font-weight:700;background:linear-gradient(135deg,var(--accent2),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:flex;align-items:center;gap:8px}
+.header h1 .icon{font-size:22px;-webkit-text-fill-color:var(--accent)}
+.header h1 .version{font-size:10px;opacity:0.4;-webkit-text-fill-color:var(--text3);font-weight:500}
+.header-actions{display:flex;gap:8px}
+.header-actions button{background:var(--glass);border:1px solid var(--glass-border);color:var(--text2);width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;transition:all .25s;backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.header-actions button:hover{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow)}
+
+/* Scrollbar */
+.main{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;z-index:5;padding:0 12px 80px;scroll-behavior:smooth}
+.main::-webkit-scrollbar{width:4px}
+.main::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:4px}
+
+/* Tab bar */
+.tab-bar{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--glass);border-top:1px solid var(--glass-border);display:flex;padding:4px 4px env(safe-area-inset-bottom,6px);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.tab-bar button{flex:1;background:none;border:none;color:var(--text3);font-size:9px;padding:6px 2px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .25s;position:relative;border-radius:10px;letter-spacing:0.02em}
+.tab-bar button .tab-icon{font-size:18px;line-height:1;transition:transform .25s}
+.tab-bar button.active{color:var(--accent2)}
+.tab-bar button.active .tab-icon{transform:scale(1.1)}
+.tab-bar button.active::after{content:'';position:absolute;top:-1px;left:20%;right:20%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);border-radius:0 0 2px 2px}
+
+/* Views */
+.view{display:none;animation:fadeIn .3s ease}
+.view.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* Section titles */
+.section-title{font-size:15px;font-weight:700;color:var(--text);margin:16px 4px 10px;display:flex;align-items:center;gap:8px}
+.section-title .badge{background:linear-gradient(135deg,var(--accent),var(--accent3));color:#fff;font-size:11px;padding:2px 9px;border-radius:10px;font-weight:600}
+
+/* Glass Card base */
+.glass{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-border);border-radius:var(--radius)}
+
+/* Cards */
+.card{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-radius:var(--radius);padding:14px;margin-bottom:10px;box-shadow:var(--shadow);border:1px solid var(--glass-border);transition:all .25s}
+.card:active{transform:scale(0.98)}
+
+/* Song item */
+.song-item{display:flex;align-items:center;gap:12px;padding:12px;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-radius:var(--radius);margin-bottom:8px;border:1px solid var(--glass-border);cursor:pointer;transition:all .25s}
+.song-item:hover{border-color:rgba(108,92,231,0.3);box-shadow:0 4px 20px var(--accent-glow)}
+.song-item .song-art{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--accent3),var(--accent));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;color:#fff;font-weight:700;text-transform:uppercase;box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+.song-item .song-info{flex:1;min-width:0}
+.song-item .song-title{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.song-item .song-artist{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.song-item .song-meta{display:flex;gap:5px;margin-top:4px;flex-wrap:wrap}
+.song-item .song-meta .tag{font-size:10px;padding:2px 7px;border-radius:8px;background:rgba(108,92,231,0.15);color:var(--accent2);border:1px solid rgba(108,92,231,0.1)}
+.song-item .song-rating{display:flex;gap:1px;flex-shrink:0}
+.song-item .song-rating .star{font-size:12px;color:var(--text3)}
+.song-item .song-rating .star.filled{color:#ffd43b}
+.song-item .song-actions{display:flex;gap:4px;flex-shrink:0;margin-left:4px}
+.song-item .song-actions button{background:none;border:none;color:var(--text3);font-size:14px;cursor:pointer;padding:4px;border-radius:6px;transition:all .2s;line-height:1}
+.song-item .song-actions button:hover{color:var(--accent);background:var(--bg4)}
+
+/* Mood board */
+.mood-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+.mood-card{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-border);border-radius:var(--radius);padding:18px 14px;text-align:center;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+.mood-card::before{content:'';position:absolute;inset:0;background:var(--mood-color);opacity:0;transition:opacity .3s}
+.mood-card.active{border-color:var(--accent);box-shadow:0 0 24px var(--accent-glow)}
+.mood-card.active::before{opacity:0.15}
+.mood-card .mood-emoji{font-size:30px;margin-bottom:6px;position:relative;z-index:1;transition:transform .3s}
+.mood-card.active .mood-emoji{transform:scale(1.15)}
+.mood-card .mood-label{font-size:13px;font-weight:600;position:relative;z-index:1}
+.mood-card .mood-count{font-size:11px;color:var(--text2);margin-top:4px;position:relative;z-index:1}
+
+/* Stats */
+.stat-row{display:flex;gap:10px;margin-bottom:10px}
+.stat-box{flex:1;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-radius:var(--radius);padding:14px;text-align:center;border:1px solid var(--glass-border)}
+.stat-box .stat-val{font-size:24px;font-weight:700;background:linear-gradient(135deg,var(--accent2),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-box .stat-label{font-size:11px;color:var(--text2);margin-top:4px}
+.chart-container{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-radius:var(--radius);padding:14px;margin-bottom:12px;border:1px solid var(--glass-border)}
+.chart-container canvas{width:100%!important;max-height:200px}
+.chart-title{font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)}
+
+/* Bar chart (CSS) */
+.bar-chart{display:flex;flex-direction:column;gap:8px}
+.bar-row{display:flex;align-items:center;gap:10px}
+.bar-row .bar-label{font-size:12px;color:var(--text2);width:80px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.bar-row .bar-track{flex:1;height:24px;background:var(--bg4);border-radius:8px;overflow:hidden;position:relative}
+.bar-row .bar-fill{height:100%;border-radius:8px;background:linear-gradient(90deg,var(--accent3),var(--accent),var(--accent2));transition:width .6s ease;display:flex;align-items:center;padding-left:8px;font-size:11px;color:#fff;font-weight:600;min-width:fit-content}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;border-radius:var(--radius);font-size:14px;font-weight:600;border:none;cursor:pointer;transition:all .25s}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent3));color:#fff;box-shadow:0 4px 16px var(--accent-glow)}
+.btn-primary:hover{box-shadow:0 6px 24px rgba(108,92,231,0.4);transform:translateY(-1px)}
+.btn-secondary{background:var(--glass);color:var(--text);border:1px solid var(--glass-border);backdrop-filter:var(--blur)}
+.btn-secondary:hover{background:var(--bg4);border-color:var(--accent3)}
+.btn-danger{background:linear-gradient(135deg,#ff6b6b,#ee5a24);color:#fff}
+.btn-full{width:100%}
+.btn-sm{padding:7px 14px;font-size:12px;border-radius:12px}
+
+/* Form */
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:600}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:10px 14px;background:var(--bg4);border:1px solid var(--glass-border);border-radius:12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:all .25s}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:var(--accent);box-shadow:0 0 12px var(--accent-glow)}
+.form-group textarea{resize:vertical;min-height:80px}
+.form-group select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239898b8' fill='none' stroke-width='2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+
+/* Star rating input */
+.star-input{display:flex;gap:4px;flex-direction:row-reverse;justify-content:flex-end}
+.star-input input{display:none}
+.star-input label{font-size:24px;color:var(--text3);cursor:pointer;transition:all .15s}
+.star-input label:hover,.star-input label:hover~label,.star-input input:checked~label{color:#ffd43b;text-shadow:0 0 8px rgba(255,212,59,0.4)}
+
+/* Tags input */
+.tags-container{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tags-container .tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:linear-gradient(135deg,var(--accent3),var(--accent));color:#fff;border-radius:10px;font-size:12px;cursor:pointer;transition:all .2s}
+.tags-container .tag:hover{background:linear-gradient(135deg,var(--danger),#ee5a24)}
+.tag-presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tag-presets button{padding:4px 10px;background:var(--bg4);border:1px solid var(--glass-border);color:var(--text2);border-radius:10px;font-size:11px;cursor:pointer;transition:all .15s}
+.tag-presets button:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.modal-overlay.show{display:flex}
+.modal{background:rgba(18,18,38,0.92);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid var(--glass-border);border-radius:20px 20px 0 0;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;padding:20px 16px 30px;animation:slideUp .3s cubic-bezier(0.16,1,0.3,1)}
+.modal::-webkit-scrollbar{width:4px}
+.modal::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.modal-header h2{font-size:17px;font-weight:700}
+.modal-close{background:var(--bg4);border:1px solid var(--glass-border);color:var(--text2);width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;transition:all .2s}
+.modal-close:hover{background:var(--accent);color:#fff}
+
+/* Playlist chips */
+.playlist-chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;-webkit-overflow-scrolling:touch}
+.playlist-chips::-webkit-scrollbar{display:none}
+.playlist-chip{flex-shrink:0;padding:8px 16px;border-radius:20px;background:var(--glass);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--glass-border);transition:all .25s;white-space:nowrap;backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.playlist-chip.active{background:linear-gradient(135deg,var(--accent),var(--accent3));color:#fff;border-color:var(--accent);box-shadow:0 4px 16px var(--accent-glow)}
+.playlist-chip.add-chip{border:1px dashed var(--text3);color:var(--text3)}
+.playlist-chip.add-chip:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Random pick */
+.random-container{display:flex;flex-direction:column;align-items:center;padding:30px 20px;text-align:center}
+.random-btn{width:130px;height:130px;border-radius:50%;background:linear-gradient(135deg,var(--accent3),var(--accent),var(--accent2));border:none;color:#fff;font-size:44px;cursor:pointer;transition:all .3s;box-shadow:0 0 40px var(--accent-glow);position:relative;overflow:hidden}
+.random-btn::before{content:'';position:absolute;inset:3px;border-radius:50%;background:linear-gradient(135deg,var(--accent3),var(--accent));z-index:0}
+.random-btn::after{content:'🎲';position:relative;z-index:1;font-size:44px}
+.random-btn:hover{transform:scale(1.05);box-shadow:0 0 60px rgba(108,92,231,0.5)}
+.random-btn:active{transform:scale(0.95)}
+.random-btn.spinning{animation:spin .5s ease-out}
+@keyframes spin{0%{transform:rotate(0deg) scale(1)}50%{transform:rotate(180deg) scale(0.9)}100%{transform:rotate(360deg) scale(1)}}
+.random-result{margin-top:24px;width:100%}
+
+/* Discovery feed */
+.discovery-reason{font-size:11px;color:var(--accent2);margin-top:4px}
+
+/* Journal */
+.journal-entry{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-radius:var(--radius);padding:14px;margin-bottom:10px;border:1px solid var(--glass-border);cursor:pointer;transition:all .25s}
+.journal-entry:hover{border-color:rgba(108,92,231,0.3)}
+.journal-song{font-size:14px;font-weight:600;margin-bottom:4px}
+.journal-date{font-size:11px;color:var(--text3);margin-bottom:8px}
+.journal-text{font-size:13px;color:var(--text2);line-height:1.6}
+
+/* Search */
+.search-bar{position:relative;margin-bottom:12px}
+.search-bar input{width:100%;padding:10px 14px 10px 38px;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-border);border-radius:14px;color:var(--text);font-size:14px;outline:none;transition:all .25s}
+.search-bar input:focus{border-color:var(--accent);box-shadow:0 0 16px var(--accent-glow)}
+.search-bar .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none}
+
+/* Empty states */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px;opacity:0.5}
+.empty-state p{font-size:14px;margin-bottom:16px}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);color:var(--text);padding:10px 20px;border-radius:14px;font-size:13px;font-weight:600;z-index:200;transition:transform .3s cubic-bezier(0.16,1,0.3,1);border:1px solid var(--accent);box-shadow:0 8px 32px rgba(0,0,0,0.4)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Confirm dialog */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:150;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:fadeIn .2s ease}
+.confirm-box{background:rgba(18,18,38,0.95);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid var(--glass-border);border-radius:var(--radius);padding:24px 20px;max-width:340px;width:90%;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.5)}
+.confirm-box p{font-size:14px;margin-bottom:18px;line-height:1.5}
+.confirm-box .confirm-actions{display:flex;gap:10px}
+
+/* Playlist selector in modal */
+.playlist-select-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0}
+.playlist-select-item{padding:10px;background:var(--bg4);border:2px solid transparent;border-radius:12px;text-align:center;cursor:pointer;font-size:13px;font-weight:600;transition:all .25s}
+.playlist-select-item:hover,.playlist-select-item.selected{border-color:var(--accent);background:rgba(108,92,231,0.15)}
+
+/* Duplicate warning */
+.duplicate-warning{background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--danger);display:none;align-items:center;gap:8px}
+.duplicate-warning.show{display:flex}
+
+@media(min-width:500px){
+  .main{padding:0 20px 80px}
+  .mood-grid{grid-template-columns:repeat(3,1fr)}
+  .stat-row{gap:12px}
+}
+@media(min-width:768px){
+  .mood-grid{grid-template-columns:repeat(5,1fr)}
+  .main{padding:0 32px 80px;max-width:700px;margin:0 auto}
+}
+</style>
+</head>
+<body>
+
+<!-- Waveform background -->
+<div class="waveform-bg" id="waveformBg"></div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Header -->
+<div class="header">
+  <h1><span class="icon">♫</span> ミュージックライブラリ <span class="version">v2.0</span></h1>
+  <div class="header-actions">
+    <button onclick="exportLibrary()" title="エクスポート">↓</button>
+    <button onclick="openImportDialog()" title="インポート">↑</button>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main" id="mainContent">
+
+  <!-- Library View -->
+  <div class="view active" id="viewLibrary">
+    <div class="search-bar">
+      <span class="search-icon">&#x1F50D;</span>
+      <input type="text" id="searchInput" placeholder="曲名・アーティスト・ジャンルで検索..." oninput="renderLibrary()">
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
+      <select id="sortSelect" onchange="renderLibrary()" style="padding:7px 28px 7px 10px;background:var(--glass);border:1px solid var(--glass-border);border-radius:10px;color:var(--text2);font-size:12px;outline:none;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)">
+        <option value="newest">新しい順</option>
+        <option value="oldest">古い順</option>
+        <option value="rating">評価順</option>
+        <option value="artist">アーティスト順</option>
+        <option value="title">タイトル順</option>
+        <option value="updated">更新順</option>
+      </select>
+      <select id="genreFilter" onchange="renderLibrary()" style="padding:7px 28px 7px 10px;background:var(--glass);border:1px solid var(--glass-border);border-radius:10px;color:var(--text2);font-size:12px;outline:none;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)">
+        <option value="">全ジャンル</option>
+      </select>
+    </div>
+    <div class="section-title">プレイリスト</div>
+    <div class="playlist-chips" id="playlistChips"></div>
+    <div class="section-title">ライブラリ <span class="badge" id="songCountBadge">0</span></div>
+    <div id="songList"></div>
+    <div style="padding:10px 0">
+      <button class="btn btn-primary btn-full" onclick="openAddSongModal()">+ 曲を追加</button>
+    </div>
+  </div>
+
+  <!-- Discovery View -->
+  <div class="view" id="viewDiscovery">
+    <div class="section-title">あなたへのおすすめ</div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:14px">高評価の曲のムード・ジャンルに基づく提案</p>
+    <div id="discoveryFeed"></div>
+  </div>
+
+  <!-- Mood View -->
+  <div class="view" id="viewMood">
+    <div class="section-title">ムードボード</div>
+    <div class="mood-grid" id="moodGrid"></div>
+    <div id="moodFilteredSongs"></div>
+  </div>
+
+  <!-- Stats View -->
+  <div class="view" id="viewStats">
+    <div class="section-title">統計</div>
+    <div class="stat-row" id="statOverview"></div>
+    <div class="chart-container">
+      <div class="chart-title">レーティング分布</div>
+      <canvas id="chartRating" height="180"></canvas>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">トップジャンル</div>
+      <div class="bar-chart" id="topGenresChart"></div>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">トップアーティスト</div>
+      <div class="bar-chart" id="topArtistsChart"></div>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">ムード分布</div>
+      <canvas id="chartMood" height="180"></canvas>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">月別追加数</div>
+      <div class="bar-chart" id="monthlyChart"></div>
+    </div>
+  </div>
+
+  <!-- Random View -->
+  <div class="view" id="viewRandom">
+    <div class="random-container">
+      <div class="section-title" style="margin-bottom:8px">ランダムピック</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:16px">ムードを選んでシャッフル</p>
+      <div class="playlist-chips" style="justify-content:center;flex-wrap:wrap;margin-bottom:20px" id="randomMoodChips"></div>
+      <button class="random-btn" id="randomBtn" onclick="randomPick()"></button>
+      <div class="random-result" id="randomResult"></div>
+    </div>
+  </div>
+
+  <!-- Journal View -->
+  <div class="view" id="viewJournal">
+    <div class="section-title">ソングジャーナル</div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:14px">曲にまつわる思い出やメモ</p>
+    <div id="journalList"></div>
+  </div>
+</div>
+
+<!-- Tab Bar -->
+<div class="tab-bar">
+  <button class="active" onclick="switchTab('Library',this)"><span class="tab-icon">&#x1F4DA;</span>ライブラリ</button>
+  <button onclick="switchTab('Discovery',this)"><span class="tab-icon">&#x2728;</span>発見</button>
+  <button onclick="switchTab('Mood',this)"><span class="tab-icon">&#x1F3AD;</span>ムード</button>
+  <button onclick="switchTab('Stats',this)"><span class="tab-icon">&#x1F4CA;</span>統計</button>
+  <button onclick="switchTab('Random',this)"><span class="tab-icon">&#x1F3B2;</span>ランダム</button>
+  <button onclick="switchTab('Journal',this)"><span class="tab-icon">&#x1F4D3;</span>日記</button>
+</div>
+
+<!-- Add/Edit Song Modal -->
+<div class="modal-overlay" id="songModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="songModalTitle">曲を追加</h2>
+      <button class="modal-close" onclick="closeModal('songModal')">&#x2715;</button>
+    </div>
+    <div class="duplicate-warning" id="duplicateWarning">
+      <span>&#x26A0;</span>
+      <span id="duplicateWarningText"></span>
+    </div>
+    <form id="songForm" onsubmit="saveSong(event)">
+      <input type="hidden" id="songId">
+      <div class="form-group">
+        <label>タイトル *</label>
+        <input type="text" id="songTitleInput" required placeholder="曲名を入力" oninput="checkDuplicate()">
+      </div>
+      <div class="form-group">
+        <label>アーティスト *</label>
+        <input type="text" id="songArtistInput" required placeholder="アーティスト名" oninput="checkDuplicate()">
+      </div>
+      <div class="form-group">
+        <label>アルバム</label>
+        <input type="text" id="songAlbumInput" placeholder="アルバム名">
+      </div>
+      <div class="form-group">
+        <label>ジャンル</label>
+        <select id="songGenreInput">
+          <option value="">選択してください</option>
+          <option value="J-Pop">J-Pop</option>
+          <option value="J-Rock">J-Rock</option>
+          <option value="K-Pop">K-Pop</option>
+          <option value="Pop">Pop</option>
+          <option value="Rock">Rock</option>
+          <option value="Hip-Hop">Hip-Hop</option>
+          <option value="R&B">R&B</option>
+          <option value="Electronic">Electronic</option>
+          <option value="Jazz">Jazz</option>
+          <option value="Classical">Classical</option>
+          <option value="Indie">Indie</option>
+          <option value="Metal">Metal</option>
+          <option value="Folk">Folk</option>
+          <option value="Lo-fi">Lo-fi</option>
+          <option value="Ambient">Ambient</option>
+          <option value="Soundtrack">Soundtrack</option>
+          <option value="Vocaloid">Vocaloid</option>
+          <option value="Anime">Anime</option>
+          <option value="City Pop">City Pop</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>レーティング</label>
+        <div class="star-input">
+          <input type="radio" name="rating" id="star5" value="5"><label for="star5">&#x2605;</label>
+          <input type="radio" name="rating" id="star4" value="4"><label for="star4">&#x2605;</label>
+          <input type="radio" name="rating" id="star3" value="3" checked><label for="star3">&#x2605;</label>
+          <input type="radio" name="rating" id="star2" value="2"><label for="star2">&#x2605;</label>
+          <input type="radio" name="rating" id="star1" value="1"><label for="star1">&#x2605;</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>ムードタグ</label>
+        <div class="tag-presets" id="moodTagPresets"></div>
+        <div class="tags-container" id="selectedMoodTags"></div>
+        <input type="text" id="customTagInput" placeholder="カスタムタグを入力してEnter" style="margin-top:8px" onkeydown="addCustomTag(event)">
+      </div>
+      <div class="form-group">
+        <label>プレイリスト</label>
+        <div class="playlist-select-grid" id="playlistSelectGrid"></div>
+      </div>
+      <div class="form-group">
+        <label>メモ（ジャーナル）</label>
+        <textarea id="songNotesInput" placeholder="この曲にまつわる思い出やメモ..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>発見日</label>
+        <input type="date" id="songDateInput">
+      </div>
+      <div style="display:flex;gap:10px">
+        <button type="submit" class="btn btn-primary btn-full">保存</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('songModal')" style="flex-shrink:0">キャンセル</button>
+      </div>
+      <div id="deleteSongContainer" style="margin-top:12px;display:none">
+        <button type="button" class="btn btn-danger btn-full btn-sm" onclick="deleteSong()">この曲を削除</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Playlist Modal -->
+<div class="modal-overlay" id="playlistModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>プレイリストを作成</h2>
+      <button class="modal-close" onclick="closeModal('playlistModal')">&#x2715;</button>
+    </div>
+    <form onsubmit="savePlaylist(event)">
+      <div class="form-group">
+        <label>プレイリスト名</label>
+        <input type="text" id="playlistNameInput" required placeholder="名前を入力">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">作成</button>
+    </form>
+  </div>
+</div>
+
+<!-- Song Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>曲の詳細</h2>
+      <button class="modal-close" onclick="closeModal('detailModal')">&#x2715;</button>
+    </div>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>ライブラリをインポート</h2>
+      <button class="modal-close" onclick="closeModal('importModal')">&#x2715;</button>
+    </div>
+    <div class="form-group">
+      <label>JSONファイルを選択</label>
+      <input type="file" id="importFile" accept=".json" onchange="loadImportFile(this)" style="margin-bottom:10px;font-size:13px">
+    </div>
+    <div class="form-group">
+      <label>またはJSONを貼り付け</label>
+      <textarea id="importTextarea" placeholder='{"songs":[...],"playlists":[...]}' style="min-height:150px"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary btn-full" onclick="importLibrary()">マージ（既存に追加）</button>
+    </div>
+    <div style="margin-top:8px">
+      <button class="btn btn-danger btn-full btn-sm" onclick="importLibraryReplace()">上書きインポート</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== Data Layer ====================
+const STORAGE_KEY = 'musicLibrary_v2';
+const STORAGE_KEY_OLD = 'musicLibrary_v1';
+const MOODS = [
+  {id:'focus',label:'集中',emoji:'\u{1F3AF}',color:'#6c5ce7'},
+  {id:'relax',label:'リラックス',emoji:'\u{1F33F}',color:'#00b894'},
+  {id:'energy',label:'エネルギー',emoji:'\u{26A1}',color:'#e17055'},
+  {id:'melancholy',label:'メランコリー',emoji:'\u{1F327}',color:'#636e72'},
+  {id:'party',label:'パーティー',emoji:'\u{1F389}',color:'#fdcb6e'},
+  {id:'romance',label:'ロマンス',emoji:'\u{1F49C}',color:'#e84393'},
+  {id:'chill',label:'チル',emoji:'\u{1F319}',color:'#0984e3'},
+  {id:'workout',label:'ワークアウト',emoji:'\u{1F4AA}',color:'#d63031'},
+  {id:'study',label:'勉強',emoji:'\u{1F4D6}',color:'#00cec9'},
+  {id:'drive',label:'ドライブ',emoji:'\u{1F697}',color:'#ffeaa7'}
+];
+
+let state = loadState();
+let activePlaylist = 'all';
+let activeMood = null;
+let randomMood = null;
+
+function loadState(){
+  try{
+    // Try v2 first
+    let d = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if(d && d.songs) return d;
+    // Migrate from v1
+    d = JSON.parse(localStorage.getItem(STORAGE_KEY_OLD));
+    if(d && d.songs){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+      return d;
+    }
+  }catch(e){}
+  return {songs:[],playlists:['\u{304A}\u{6C17}\u{306B}\u{5165}\u{308A}','\u{4F5C}\u{696D}\u{7528}','\u{30C9}\u{30E9}\u{30A4}\u{30D6}']};
+}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch(e){ showToast('\u{4FDD}\u{5B58}\u{306B}\u{5931}\u{6557}\u{3057}\u{307E}\u{3057}\u{305F}\u{FF08}\u{5BB9}\u{91CF}\u{4E0D}\u{8DB3}\u{306E}\u{53EF}\u{80FD}\u{6027}\u{FF09}'); }
+}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+
+// ==================== Waveform Background ====================
+(function initWaveform(){
+  const container = document.getElementById('waveformBg');
+  const count = Math.min(Math.floor(window.innerWidth / 6), 200);
+  for(let i=0;i<count;i++){
+    const bar = document.createElement('div');
+    bar.className='bar';
+    const h1 = 5+Math.random()*25;
+    const h2 = 15+Math.random()*60;
+    bar.style.cssText='left:'+i*6+'px;--h1:'+h1+'px;--h2:'+h2+'px;--dur:'+(0.8+Math.random()*1.5)+'s;animation-delay:'+Math.random()*2+'s';
+    container.appendChild(bar);
+  }
+})();
+
+// ==================== Toast ====================
+let toastTimeout=null;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  if(toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+// ==================== Custom Confirm ====================
+function customConfirm(msg){
+  return new Promise(resolve=>{
+    const overlay=document.createElement('div');
+    overlay.className='confirm-overlay';
+    overlay.innerHTML='<div class="confirm-box"><p>'+esc(msg)+'</p><div class="confirm-actions"><button class="btn btn-secondary btn-full" id="confirmNo">キャンセル</button><button class="btn btn-danger btn-full" id="confirmYes">OK</button></div></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('#confirmYes').onclick=()=>{document.body.removeChild(overlay);resolve(true)};
+    overlay.querySelector('#confirmNo').onclick=()=>{document.body.removeChild(overlay);resolve(false)};
+    overlay.addEventListener('click',e=>{if(e.target===overlay){document.body.removeChild(overlay);resolve(false)}});
+  });
+}
+
+// ==================== Tab Navigation ====================
+function switchTab(name,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  document.getElementById('mainContent').scrollTop=0;
+  if(name==='Stats') renderStats();
+  if(name==='Discovery') renderDiscovery();
+  if(name==='Mood') renderMoodBoard();
+  if(name==='Random') renderRandomMoods();
+  if(name==='Journal') renderJournal();
+  if(name==='Library') renderLibrary();
+}
+
+// ==================== Modal ====================
+function openModal(id){document.getElementById(id).classList.add('show')}
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+  overlay.addEventListener('click',function(e){
+    if(e.target===this) this.classList.remove('show');
+  });
+});
+
+// ==================== Playlist Management ====================
+function renderPlaylistChips(){
+  const c=document.getElementById('playlistChips');
+  let html='<div class="playlist-chip '+(activePlaylist==='all'?'active':'')+'" onclick="setPlaylist(\'all\')">すべて</div>';
+  state.playlists.forEach(p=>{
+    const escaped=p.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    html+='<div class="playlist-chip '+(activePlaylist===p?'active':'')+'" onclick="setPlaylist(\''+escaped+'\')" oncontextmenu="event.preventDefault();confirmDeletePlaylist(\''+escaped+'\')">'+esc(p)+'</div>';
+  });
+  html+='<div class="playlist-chip add-chip" onclick="openModal(\'playlistModal\')">+ 新規</div>';
+  c.innerHTML=html;
+}
+async function confirmDeletePlaylist(name){
+  if(await customConfirm('プレイリスト「'+name+'」を削除しますか？')){
+    state.playlists=state.playlists.filter(p=>p!==name);
+    state.songs.forEach(s=>{if(s.playlists)s.playlists=s.playlists.filter(p=>p!==name)});
+    if(activePlaylist===name)activePlaylist='all';
+    saveState();renderLibrary();
+    showToast('プレイリストを削除しました');
+  }
+}
+function setPlaylist(p){activePlaylist=p;renderLibrary()}
+function savePlaylist(e){
+  e.preventDefault();
+  const name=document.getElementById('playlistNameInput').value.trim();
+  if(!name)return;
+  if(!state.playlists.includes(name)){
+    state.playlists.push(name);
+    saveState();
+    showToast('プレイリスト作成完了');
+  } else {
+    showToast('同名のプレイリストが既にあります');
+  }
+  document.getElementById('playlistNameInput').value='';
+  closeModal('playlistModal');
+  renderLibrary();
+}
+
+// ==================== Genre Filter ====================
+function updateGenreFilter(){
+  const select=document.getElementById('genreFilter');
+  const genres=new Set();
+  state.songs.forEach(s=>{if(s.genre)genres.add(s.genre)});
+  const sorted=[...genres].sort((a,b)=>a.localeCompare(b,'ja'));
+  let html='<option value="">全ジャンル</option>';
+  sorted.forEach(g=>{html+='<option value="'+esc(g)+'">'+esc(g)+'</option>'});
+  const current=select.value;
+  select.innerHTML=html;
+  if(sorted.includes(current)) select.value=current;
+}
+
+// ==================== Duplicate Check ====================
+function checkDuplicate(){
+  const title=document.getElementById('songTitleInput').value.trim().toLowerCase();
+  const artist=document.getElementById('songArtistInput').value.trim().toLowerCase();
+  const editId=document.getElementById('songId').value;
+  const warning=document.getElementById('duplicateWarning');
+  const warningText=document.getElementById('duplicateWarningText');
+  if(!title||!artist){warning.classList.remove('show');return}
+  const dup=state.songs.find(s=>
+    s.id!==editId &&
+    s.title.toLowerCase()===title &&
+    s.artist.toLowerCase()===artist
+  );
+  if(dup){
+    warningText.textContent='同じタイトル・アーティストの曲が既に登録されています';
+    warning.classList.add('show');
+  }else{
+    warning.classList.remove('show');
+  }
+}
+
+// ==================== Song CRUD ====================
+let editingMoodTags=[];
+let editingPlaylists=[];
+
+function openAddSongModal(){
+  document.getElementById('songModalTitle').textContent='曲を追加';
+  document.getElementById('songId').value='';
+  document.getElementById('songForm').reset();
+  document.getElementById('star3').checked=true;
+  document.getElementById('songDateInput').value=new Date().toISOString().split('T')[0];
+  document.getElementById('deleteSongContainer').style.display='none';
+  document.getElementById('duplicateWarning').classList.remove('show');
+  editingMoodTags=[];
+  editingPlaylists=activePlaylist!=='all'?[activePlaylist]:[];
+  renderMoodTagPresets();
+  renderSelectedMoodTags();
+  renderPlaylistSelectGrid();
+  openModal('songModal');
+}
+
+function openEditSongModal(id){
+  const song=state.songs.find(s=>s.id===id);
+  if(!song)return;
+  document.getElementById('songModalTitle').textContent='曲を編集';
+  document.getElementById('songId').value=song.id;
+  document.getElementById('songTitleInput').value=song.title;
+  document.getElementById('songArtistInput').value=song.artist;
+  document.getElementById('songAlbumInput').value=song.album||'';
+  document.getElementById('songGenreInput').value=song.genre||'';
+  document.getElementById('songNotesInput').value=song.notes||'';
+  document.getElementById('songDateInput').value=song.discoveredAt||'';
+  const ratingEl=document.getElementById('star'+song.rating);
+  if(ratingEl)ratingEl.checked=true;
+  document.getElementById('deleteSongContainer').style.display='block';
+  document.getElementById('duplicateWarning').classList.remove('show');
+  editingMoodTags=[...(song.moods||[])];
+  editingPlaylists=[...(song.playlists||[])];
+  renderMoodTagPresets();
+  renderSelectedMoodTags();
+  renderPlaylistSelectGrid();
+  openModal('songModal');
+}
+
+function renderMoodTagPresets(){
+  const c=document.getElementById('moodTagPresets');
+  c.innerHTML=MOODS.map(m=>{
+    const active=editingMoodTags.includes(m.id);
+    return '<button type="button" onclick="toggleMoodTag(\''+m.id+'\')" style="'+(active?'background:var(--accent);color:#fff;border-color:var(--accent)':'')+'">'+(m.emoji)+' '+(m.label)+'</button>';
+  }).join('');
+}
+function renderSelectedMoodTags(){
+  const c=document.getElementById('selectedMoodTags');
+  const customTags=editingMoodTags.filter(t=>!MOODS.find(m=>m.id===t));
+  c.innerHTML=customTags.map(t=>'<span class="tag" onclick="removeTag(\''+t.replace(/'/g,"\\'")+'\')">'+(esc(t))+' &#x2715;</span>').join('');
+}
+function toggleMoodTag(id){
+  const idx=editingMoodTags.indexOf(id);
+  if(idx>=0)editingMoodTags.splice(idx,1);else editingMoodTags.push(id);
+  renderMoodTagPresets();
+  renderSelectedMoodTags();
+}
+function removeTag(t){
+  editingMoodTags=editingMoodTags.filter(x=>x!==t);
+  renderSelectedMoodTags();
+}
+function addCustomTag(e){
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const v=e.target.value.trim();
+    if(v&&!editingMoodTags.includes(v)){editingMoodTags.push(v);renderSelectedMoodTags()}
+    e.target.value='';
+  }
+}
+function renderPlaylistSelectGrid(){
+  const c=document.getElementById('playlistSelectGrid');
+  c.innerHTML=state.playlists.map(p=>{
+    const sel=editingPlaylists.includes(p)?'selected':'';
+    return '<div class="playlist-select-item '+sel+'" onclick="togglePlaylistSelect(this,\''+p.replace(/'/g,"\\'")+'\')">'+(esc(p))+'</div>';
+  }).join('');
+}
+function togglePlaylistSelect(el,p){
+  const idx=editingPlaylists.indexOf(p);
+  if(idx>=0){editingPlaylists.splice(idx,1);el.classList.remove('selected')}
+  else{editingPlaylists.push(p);el.classList.add('selected')}
+}
+
+function saveSong(e){
+  e.preventDefault();
+  const id=document.getElementById('songId').value;
+  const ratingEl=document.querySelector('input[name="rating"]:checked');
+  const song={
+    id:id||genId(),
+    title:document.getElementById('songTitleInput').value.trim(),
+    artist:document.getElementById('songArtistInput').value.trim(),
+    album:document.getElementById('songAlbumInput').value.trim(),
+    genre:document.getElementById('songGenreInput').value,
+    rating:ratingEl?parseInt(ratingEl.value):3,
+    moods:[...editingMoodTags],
+    playlists:[...editingPlaylists],
+    notes:document.getElementById('songNotesInput').value.trim(),
+    discoveredAt:document.getElementById('songDateInput').value||new Date().toISOString().split('T')[0],
+    createdAt:id?(state.songs.find(s=>s.id===id)||{}).createdAt||Date.now():Date.now(),
+    updatedAt:Date.now()
+  };
+  if(id){
+    const idx=state.songs.findIndex(s=>s.id===id);
+    if(idx>=0)state.songs[idx]=song;
+  }else{
+    state.songs.unshift(song);
+  }
+  saveState();
+  closeModal('songModal');
+  renderLibrary();
+  showToast(id?'曲を更新しました':'曲を追加しました');
+}
+
+async function deleteSong(){
+  const id=document.getElementById('songId').value;
+  if(!id)return;
+  if(await customConfirm('この曲を削除しますか？')){
+    state.songs=state.songs.filter(s=>s.id!==id);
+    saveState();
+    closeModal('songModal');
+    renderLibrary();
+    showToast('曲を削除しました');
+  }
+}
+
+// ==================== Library Render ====================
+function getFilteredSongs(){
+  let songs=[...state.songs];
+  if(activePlaylist!=='all'){
+    songs=songs.filter(s=>s.playlists&&s.playlists.includes(activePlaylist));
+  }
+  const genreFilter=document.getElementById('genreFilter')?.value;
+  if(genreFilter){
+    songs=songs.filter(s=>s.genre===genreFilter);
+  }
+  const q=(document.getElementById('searchInput')?.value||'').trim().toLowerCase();
+  if(q){
+    const terms=q.split(/\s+/);
+    songs=songs.filter(s=>{
+      const text=(s.title+' '+s.artist+' '+(s.album||'')+' '+(s.genre||'')).toLowerCase();
+      return terms.every(t=>text.includes(t));
+    });
+  }
+  const sort=document.getElementById('sortSelect')?.value||'newest';
+  switch(sort){
+    case 'newest': songs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)); break;
+    case 'oldest': songs.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)); break;
+    case 'rating': songs.sort((a,b)=>b.rating-a.rating||(b.createdAt||0)-(a.createdAt||0)); break;
+    case 'artist': songs.sort((a,b)=>a.artist.localeCompare(b.artist,'ja')); break;
+    case 'title': songs.sort((a,b)=>a.title.localeCompare(b.title,'ja')); break;
+    case 'updated': songs.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)); break;
+  }
+  return songs;
+}
+
+function renderLibrary(){
+  renderPlaylistChips();
+  updateGenreFilter();
+  const songs=getFilteredSongs();
+  document.getElementById('songCountBadge').textContent=songs.length;
+  const list=document.getElementById('songList');
+  if(songs.length===0){
+    const hasAny=state.songs.length>0;
+    list.innerHTML='<div class="empty-state"><div class="empty-icon">\u{1F3B5}</div><p>'+(hasAny?'検索条件に合う曲がありません':'曲がありません。追加してみましょう！')+'</p></div>';
+    return;
+  }
+  list.innerHTML=songs.map(s=>{
+    const stars=Array(5).fill(0).map((_,i)=>'<span class="star '+(i<s.rating?'filled':'')+'">&#x2605;</span>').join('');
+    const moodLabels=(s.moods||[]).slice(0,3).map(m=>{
+      const mood=MOODS.find(x=>x.id===m);
+      return '<span class="tag">'+(mood?mood.emoji+' '+mood.label:esc(m))+'</span>';
+    }).join('');
+    const artColors=['#6c5ce7','#e17055','#00b894','#0984e3','#e84393','#fdcb6e','#d63031','#00cec9'];
+    const artColor=artColors[s.title.charCodeAt(0)%artColors.length];
+    const safeId=esc(s.id);
+    return '<div class="song-item" onclick="showSongDetail(\''+safeId+'\')">'
+      +'<div class="song-art" style="background:linear-gradient(135deg,'+artColor+','+artColor+'66)">'+esc(s.title[0])+'</div>'
+      +'<div class="song-info">'
+        +'<div class="song-title">'+esc(s.title)+'</div>'
+        +'<div class="song-artist">'+esc(s.artist)+(s.album?' \u{2014} '+esc(s.album):'')+'</div>'
+        +'<div class="song-meta">'+(s.genre?'<span class="tag">'+esc(s.genre)+'</span>':'')+moodLabels+'</div>'
+      +'</div>'
+      +'<div class="song-rating">'+stars+'</div>'
+      +'<div class="song-actions">'
+        +'<button onclick="event.stopPropagation();openEditSongModal(\''+safeId+'\')" title="編集">&#x270F;</button>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+
+function showSongDetail(id){
+  const s=state.songs.find(x=>x.id===id);
+  if(!s)return;
+  const stars='\u{2605}'.repeat(s.rating)+'\u{2606}'.repeat(5-s.rating);
+  const moodLabels=(s.moods||[]).map(m=>{const mood=MOODS.find(x=>x.id===m);return mood?mood.emoji+' '+mood.label:esc(m)}).join(', ');
+  const playlists=(s.playlists||[]).map(p=>esc(p)).join(', ');
+  const safeId=esc(s.id);
+  document.getElementById('detailContent').innerHTML=
+    '<div style="text-align:center;margin-bottom:16px">'
+      +'<div style="width:80px;height:80px;border-radius:18px;background:linear-gradient(135deg,var(--accent3),var(--accent));margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:32px;color:#fff;font-weight:700;box-shadow:0 8px 24px var(--accent-glow)">'+esc(s.title[0])+'</div>'
+      +'<h3 style="font-size:18px">'+esc(s.title)+'</h3>'
+      +'<p style="color:var(--text2);font-size:14px">'+esc(s.artist)+'</p>'
+      +'<p style="color:#ffd43b;font-size:18px;margin-top:6px">'+stars+'</p>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">'
+      +(s.album?'<div class="card" style="margin:0"><div style="font-size:11px;color:var(--text3)">アルバム</div><div style="font-size:13px;margin-top:2px">'+esc(s.album)+'</div></div>':'')
+      +(s.genre?'<div class="card" style="margin:0"><div style="font-size:11px;color:var(--text3)">ジャンル</div><div style="font-size:13px;margin-top:2px">'+esc(s.genre)+'</div></div>':'')
+      +(moodLabels?'<div class="card" style="margin:0;grid-column:span 2"><div style="font-size:11px;color:var(--text3)">ムード</div><div style="font-size:13px;margin-top:2px">'+moodLabels+'</div></div>':'')
+      +(playlists?'<div class="card" style="margin:0;grid-column:span 2"><div style="font-size:11px;color:var(--text3)">プレイリスト</div><div style="font-size:13px;margin-top:2px">'+playlists+'</div></div>':'')
+      +(s.discoveredAt?'<div class="card" style="margin:0"><div style="font-size:11px;color:var(--text3)">発見日</div><div style="font-size:13px;margin-top:2px">'+s.discoveredAt+'</div></div>':'')
+    +'</div>'
+    +(s.notes?'<div class="card"><div style="font-size:11px;color:var(--text3);margin-bottom:6px">メモ</div><div style="font-size:13px;line-height:1.6;color:var(--text2)">'+esc(s.notes).replace(/\n/g,'<br>')+'</div></div>':'')
+    +'<div style="display:flex;gap:10px;margin-top:12px">'
+      +'<button class="btn btn-primary btn-full" onclick="closeModal(\'detailModal\');openEditSongModal(\''+safeId+'\')">編集</button>'
+      +'<button class="btn btn-secondary" onclick="closeModal(\'detailModal\')" style="flex-shrink:0">閉じる</button>'
+    +'</div>';
+  openModal('detailModal');
+}
+
+// ==================== Discovery Feed ====================
+function renderDiscovery(){
+  const feed=document.getElementById('discoveryFeed');
+  if(state.songs.length<2){
+    feed.innerHTML='<div class="empty-state"><div class="empty-icon">\u{2728}</div><p>もっと曲を追加すると、おすすめが表示されます</p></div>';
+    return;
+  }
+  const topSongs=state.songs.filter(s=>s.rating>=4);
+  if(topSongs.length===0){
+    feed.innerHTML='<div class="empty-state"><div class="empty-icon">\u{2B50}</div><p>4つ星以上の曲を追加すると、おすすめが生成されます</p></div>';
+    return;
+  }
+  const topMoods={};const topGenres={};
+  topSongs.forEach(s=>{
+    (s.moods||[]).forEach(m=>{topMoods[m]=(topMoods[m]||0)+s.rating});
+    if(s.genre)topGenres[s.genre]=(topGenres[s.genre]||0)+s.rating;
+  });
+  const allSongs=[...state.songs].sort((a,b)=>b.rating-a.rating);
+  const recommendations=[];
+  allSongs.forEach(s=>{
+    if(s.rating>=4)return;
+    let score=0;let reasons=[];
+    (s.moods||[]).forEach(m=>{if(topMoods[m]){score+=topMoods[m];const mood=MOODS.find(x=>x.id===m);reasons.push(mood?mood.label:m)}});
+    if(s.genre&&topGenres[s.genre]){score+=topGenres[s.genre];reasons.push(s.genre)}
+    if(score>0)recommendations.push({...s,score,reasons:[...new Set(reasons)]});
+  });
+  recommendations.sort((a,b)=>b.score-a.score);
+  const recsToShow=recommendations.slice(0,10);
+  if(recsToShow.length===0){
+    feed.innerHTML='<div class="empty-state"><div class="empty-icon">\u{1F3B5}</div><p>すべての曲が高評価です！新しい曲を追加してみましょう</p></div>';
+    return;
+  }
+  feed.innerHTML=recsToShow.map(s=>{
+    const stars=Array(5).fill(0).map((_,i)=>'<span class="star '+(i<s.rating?'filled':'')+'">&#x2605;</span>').join('');
+    return '<div class="song-item" onclick="showSongDetail(\''+esc(s.id)+'\')">'
+      +'<div class="song-art" style="background:linear-gradient(135deg,var(--accent3),var(--accent))">\u{266A}</div>'
+      +'<div class="song-info">'
+        +'<div class="song-title">'+esc(s.title)+'</div>'
+        +'<div class="song-artist">'+esc(s.artist)+'</div>'
+        +'<div class="discovery-reason">\u{300C}'+s.reasons.join('\u{300D}\u{300C}')+'\u{300D}\u{304C}\u{597D}\u{304D}\u{306A}\u{3042}\u{306A}\u{305F}\u{3078}</div>'
+      +'</div>'
+      +'<div class="song-rating">'+stars+'</div>'
+    +'</div>';
+  }).join('');
+}
+
+// ==================== Mood Board ====================
+function renderMoodBoard(){
+  const grid=document.getElementById('moodGrid');
+  const moodCounts={};
+  state.songs.forEach(s=>(s.moods||[]).forEach(m=>{moodCounts[m]=(moodCounts[m]||0)+1}));
+  grid.innerHTML=MOODS.map(m=>{
+    const count=moodCounts[m.id]||0;
+    const isActive=activeMood===m.id;
+    return '<div class="mood-card '+(isActive?'active':'')+'" style="--mood-color:'+m.color+'" onclick="filterByMood(\''+m.id+'\')">'
+      +'<div class="mood-emoji">'+m.emoji+'</div>'
+      +'<div class="mood-label">'+m.label+'</div>'
+      +'<div class="mood-count">'+count+'\u{66F2}</div>'
+    +'</div>';
+  }).join('');
+  renderMoodFilteredSongs();
+}
+function filterByMood(id){
+  activeMood=activeMood===id?null:id;
+  renderMoodBoard();
+}
+function renderMoodFilteredSongs(){
+  const c=document.getElementById('moodFilteredSongs');
+  if(!activeMood){c.innerHTML='';return}
+  const mood=MOODS.find(m=>m.id===activeMood);
+  const songs=state.songs.filter(s=>(s.moods||[]).includes(activeMood));
+  if(songs.length===0){
+    c.innerHTML='<div class="empty-state"><p>\u{300C}'+mood.label+'\u{300D}\u{306E}\u{66F2}\u{304C}\u{3042}\u{308A}\u{307E}\u{305B}\u{3093}</p></div>';
+    return;
+  }
+  c.innerHTML='<div class="section-title">'+mood.emoji+' '+mood.label+' <span class="badge">'+songs.length+'</span></div>'+
+    songs.map(s=>{
+      const stars=Array(5).fill(0).map((_,i)=>'<span class="star '+(i<s.rating?'filled':'')+'">&#x2605;</span>').join('');
+      return '<div class="song-item" onclick="showSongDetail(\''+esc(s.id)+'\')">'
+        +'<div class="song-art" style="background:linear-gradient(135deg,'+mood.color+','+mood.color+'66)">'+esc(s.title[0])+'</div>'
+        +'<div class="song-info"><div class="song-title">'+esc(s.title)+'</div><div class="song-artist">'+esc(s.artist)+'</div></div>'
+        +'<div class="song-rating">'+stars+'</div>'
+      +'</div>';
+    }).join('');
+}
+
+// ==================== Statistics ====================
+function renderStats(){
+  const songs=state.songs;
+  const totalSongs=songs.length;
+  const avgRating=totalSongs?((songs.reduce((a,s)=>a+s.rating,0)/totalSongs).toFixed(1)):'-';
+  const uniqueArtists=new Set(songs.map(s=>s.artist)).size;
+  const uniqueGenres=new Set(songs.filter(s=>s.genre).map(s=>s.genre)).size;
+
+  document.getElementById('statOverview').innerHTML=
+    '<div class="stat-box"><div class="stat-val">'+totalSongs+'</div><div class="stat-label">曲数</div></div>'
+    +'<div class="stat-box"><div class="stat-val">'+avgRating+'</div><div class="stat-label">平均評価</div></div>'
+    +'<div class="stat-box"><div class="stat-val">'+uniqueArtists+'</div><div class="stat-label">アーティスト</div></div>'
+    +'<div class="stat-box"><div class="stat-val">'+uniqueGenres+'</div><div class="stat-label">ジャンル</div></div>';
+
+  renderRatingChart(songs);
+
+  const genreCounts={};
+  songs.forEach(s=>{if(s.genre)genreCounts[s.genre]=(genreCounts[s.genre]||0)+1});
+  renderBarChart('topGenresChart',genreCounts,8);
+
+  const artistCounts={};
+  songs.forEach(s=>{artistCounts[s.artist]=(artistCounts[s.artist]||0)+1});
+  renderBarChart('topArtistsChart',artistCounts,8);
+
+  renderMoodChart(songs);
+  renderMonthlyChart(songs);
+}
+
+function renderRatingChart(songs){
+  const canvas=document.getElementById('chartRating');
+  if(!canvas.offsetWidth) return;
+  const ctx=canvas.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=canvas.offsetWidth*dpr;
+  canvas.height=180*dpr;
+  ctx.scale(dpr,dpr);
+  const w=canvas.offsetWidth;const h=180;
+  ctx.clearRect(0,0,w,h);
+
+  const counts=[0,0,0,0,0];
+  songs.forEach(s=>{if(s.rating>=1&&s.rating<=5)counts[s.rating-1]++});
+  const max=Math.max(...counts,1);
+  const barW=(w-80)/5;
+  const labels=['\u{2605}1','\u{2605}2','\u{2605}3','\u{2605}4','\u{2605}5'];
+  const colors=['#ff6b6b','#e17055','#fdcb6e','#00b894','#6c5ce7'];
+
+  ctx.textAlign='center';ctx.textBaseline='top';
+  for(let i=0;i<5;i++){
+    const barH=Math.max((counts[i]/max)*(h-50),0);
+    const x=40+i*barW+barW*0.15;
+    const bw=barW*0.7;
+    const y=h-30-barH;
+    ctx.fillStyle=colors[i];
+    roundRect(ctx,x,y,bw,barH,6);
+    ctx.fill();
+    if(counts[i]>0){
+      ctx.fillStyle='#eeeef6';ctx.font='bold 12px sans-serif';
+      ctx.fillText(counts[i],x+bw/2,y-18);
+    }
+    ctx.fillStyle='#9898b8';ctx.font='11px sans-serif';
+    ctx.fillText(labels[i],x+bw/2,h-22);
+  }
+}
+
+function renderMoodChart(songs){
+  const canvas=document.getElementById('chartMood');
+  if(!canvas.offsetWidth) return;
+  const ctx=canvas.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=canvas.offsetWidth*dpr;
+  canvas.height=180*dpr;
+  ctx.scale(dpr,dpr);
+  const w=canvas.offsetWidth;const h=180;
+  ctx.clearRect(0,0,w,h);
+
+  const moodCounts={};
+  songs.forEach(s=>(s.moods||[]).forEach(m=>{moodCounts[m]=(moodCounts[m]||0)+1}));
+  const moodsWithCounts=MOODS.map(m=>({...m,count:moodCounts[m.id]||0})).filter(m=>m.count>0);
+
+  if(moodsWithCounts.length===0){
+    ctx.fillStyle='#606080';ctx.font='14px sans-serif';ctx.textAlign='center';
+    ctx.fillText('ムードタグを追加すると表示されます',w/2,h/2);
+    return;
+  }
+
+  const total=moodsWithCounts.reduce((a,m)=>a+m.count,0);
+  const cx=w/2;const cy=h/2-5;const r=Math.min(cx,cy)-20;
+  let startAngle=-Math.PI/2;
+
+  moodsWithCounts.forEach(m=>{
+    const sliceAngle=(m.count/total)*Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,startAngle,startAngle+sliceAngle);
+    ctx.closePath();
+    ctx.fillStyle=m.color;
+    ctx.fill();
+    ctx.strokeStyle='rgba(10,10,20,0.6)';ctx.lineWidth=2;ctx.stroke();
+
+    const midAngle=startAngle+sliceAngle/2;
+    const lx=cx+Math.cos(midAngle)*(r*0.65);
+    const ly=cy+Math.sin(midAngle)*(r*0.65);
+    if(sliceAngle>0.3){
+      ctx.fillStyle='#fff';ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(m.emoji+' '+m.count,lx,ly);
+    }
+    startAngle+=sliceAngle;
+  });
+}
+
+function renderMonthlyChart(songs){
+  const monthlyCounts={};
+  songs.forEach(s=>{
+    const d=s.discoveredAt||'';
+    if(d.length>=7){
+      const ym=d.substring(0,7);
+      monthlyCounts[ym]=(monthlyCounts[ym]||0)+1;
+    }
+  });
+  renderBarChart('monthlyChart',monthlyCounts,12);
+}
+
+function renderBarChart(containerId,data,limit){
+  const c=document.getElementById(containerId);
+  if(!c) return;
+  const sorted=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,limit);
+  if(sorted.length===0){c.innerHTML='<p style="color:var(--text3);font-size:13px;text-align:center;padding:10px">データなし</p>';return}
+  const max=sorted[0][1];
+  c.innerHTML=sorted.map(([label,count])=>{
+    const pct=Math.round((count/max)*100);
+    return '<div class="bar-row"><span class="bar-label">'+esc(label)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%">'+count+'</div></div></div>';
+  }).join('');
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  if(h<=0)return;
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h);ctx.lineTo(x,y+h);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+// ==================== Random Pick ====================
+function renderRandomMoods(){
+  const c=document.getElementById('randomMoodChips');
+  let html='<div class="playlist-chip '+(randomMood===null?'active':'')+'" onclick="setRandomMood(null)">すべて</div>';
+  MOODS.forEach(m=>{
+    html+='<div class="playlist-chip '+(randomMood===m.id?'active':'')+'" onclick="setRandomMood(\''+m.id+'\')">'+m.emoji+' '+m.label+'</div>';
+  });
+  c.innerHTML=html;
+}
+function setRandomMood(m){randomMood=m;renderRandomMoods()}
+function randomPick(){
+  const btn=document.getElementById('randomBtn');
+  btn.classList.remove('spinning');
+  void btn.offsetWidth;
+  btn.classList.add('spinning');
+
+  let pool=state.songs;
+  if(randomMood){pool=pool.filter(s=>(s.moods||[]).includes(randomMood))}
+  const result=document.getElementById('randomResult');
+  if(pool.length===0){
+    result.innerHTML='<div class="empty-state" style="padding:20px"><p>条件に合う曲がありません</p></div>';
+    return;
+  }
+  const song=pool[Math.floor(Math.random()*pool.length)];
+  const stars='\u{2605}'.repeat(song.rating)+'\u{2606}'.repeat(5-song.rating);
+  const moodLabels=(song.moods||[]).map(m=>{const mood=MOODS.find(x=>x.id===m);return mood?mood.emoji+' '+mood.label:m}).join('  ');
+  result.innerHTML=
+    '<div class="card" onclick="showSongDetail(\''+esc(song.id)+'\')" style="cursor:pointer;text-align:center">'
+      +'<div style="font-size:36px;margin-bottom:8px">\u{1F3B5}</div>'
+      +'<h3 style="font-size:18px;margin-bottom:4px">'+esc(song.title)+'</h3>'
+      +'<p style="color:var(--text2);font-size:14px;margin-bottom:8px">'+esc(song.artist)+(song.album?' \u{2014} '+esc(song.album):'')+'</p>'
+      +'<p style="color:#ffd43b;font-size:16px">'+stars+'</p>'
+      +(song.genre?'<p style="color:var(--text2);font-size:12px;margin-top:6px">'+esc(song.genre)+'</p>':'')
+      +(moodLabels?'<p style="font-size:12px;margin-top:6px">'+moodLabels+'</p>':'')
+    +'</div>';
+}
+
+// ==================== Journal ====================
+function renderJournal(){
+  const c=document.getElementById('journalList');
+  const songsWithNotes=state.songs.filter(s=>s.notes&&s.notes.trim());
+  if(songsWithNotes.length===0){
+    c.innerHTML='<div class="empty-state"><div class="empty-icon">\u{1F4D3}</div><p>曲にメモを追加すると、ここに表示されます</p></div>';
+    return;
+  }
+  songsWithNotes.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  c.innerHTML=songsWithNotes.map(s=>
+    '<div class="journal-entry" onclick="showSongDetail(\''+esc(s.id)+'\')">'
+      +'<div class="journal-song">\u{1F3B5} '+esc(s.title)+' \u{2014} '+esc(s.artist)+'</div>'
+      +'<div class="journal-date">'+(s.discoveredAt||'日付なし')+' | '+'\u{2605}'.repeat(s.rating)+'</div>'
+      +'<div class="journal-text">'+esc(s.notes).replace(/\n/g,'<br>')+'</div>'
+    +'</div>'
+  ).join('');
+}
+
+// ==================== Export / Import ====================
+function exportLibrary(){
+  const data=JSON.stringify(state,null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='music_library_'+new Date().toISOString().split('T')[0]+'.json';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('ライブラリをエクスポートしました');
+}
+function openImportDialog(){openModal('importModal')}
+function loadImportFile(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){document.getElementById('importTextarea').value=e.target.result};
+  reader.readAsText(file);
+}
+function importLibrary(){
+  const text=document.getElementById('importTextarea').value.trim();
+  if(!text){showToast('データを入力してください');return}
+  try{
+    const data=JSON.parse(text);
+    if(data.songs&&Array.isArray(data.songs)){
+      const existingIds=new Set(state.songs.map(s=>s.id));
+      let added=0;
+      data.songs.forEach(s=>{
+        if(!existingIds.has(s.id)){state.songs.push(s);added++}
+      });
+      if(data.playlists&&Array.isArray(data.playlists)){
+        data.playlists.forEach(p=>{if(!state.playlists.includes(p))state.playlists.push(p)});
+      }
+      saveState();
+      closeModal('importModal');
+      renderLibrary();
+      showToast(added+'\u{66F2}\u{3092}\u{30A4}\u{30F3}\u{30DD}\u{30FC}\u{30C8}\u{3057}\u{307E}\u{3057}\u{305F}');
+    }else{
+      showToast('無効なデータ形式です');
+    }
+  }catch(e){
+    showToast('JSONの解析に失敗しました');
+  }
+}
+async function importLibraryReplace(){
+  const text=document.getElementById('importTextarea').value.trim();
+  if(!text){showToast('データを入力してください');return}
+  if(!await customConfirm('現在のライブラリを完全に上書きします。よろしいですか？'))return;
+  try{
+    const data=JSON.parse(text);
+    if(data.songs&&Array.isArray(data.songs)){
+      state.songs=data.songs;
+      if(data.playlists&&Array.isArray(data.playlists)) state.playlists=data.playlists;
+      saveState();
+      closeModal('importModal');
+      renderLibrary();
+      showToast('ライブラリを上書きしました（'+state.songs.length+'曲）');
+    }else{
+      showToast('無効なデータ形式です');
+    }
+  }catch(e){
+    showToast('JSONの解析に失敗しました');
+  }
+}
+
+// ==================== Keyboard Shortcuts ====================
+document.addEventListener('keydown',function(e){
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+  if(e.key==='n'||e.key==='N'){openAddSongModal();e.preventDefault()}
+  if(e.key==='/'||e.key==='f'&&!e.ctrlKey){document.getElementById('searchInput').focus();e.preventDefault()}
+});
+
+// ==================== Utility ====================
+function esc(s){
+  if(!s)return '';
+  const d=document.createElement('div');d.textContent=s;return d.innerHTML;
+}
+
+// ==================== Service Worker (PWA) ====================
+if('serviceWorker' in navigator){
+  const swCode='var CACHE="music-lib-v2";self.addEventListener("install",function(e){self.skipWaiting()});self.addEventListener("activate",function(e){e.waitUntil(caches.keys().then(function(names){return Promise.all(names.filter(function(n){return n!==CACHE}).map(function(n){return caches.delete(n)}))}).then(function(){return clients.claim()}))});self.addEventListener("fetch",function(e){e.respondWith(caches.match(e.request).then(function(r){return r||fetch(e.request).then(function(resp){if(resp.status===200){var c=resp.clone();caches.open(CACHE).then(function(cache){cache.put(e.request,c)})}return resp}).catch(function(){return new Response("Offline",{status:503})})}))})';
+  const blob=new Blob([swCode],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(function(){});
+}
+
+// ==================== Init ====================
+renderLibrary();
+</script>
+</body>
+</html>
